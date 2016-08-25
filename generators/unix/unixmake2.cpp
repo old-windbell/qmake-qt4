@@ -212,11 +212,12 @@ UnixMakefileGenerator::writeMakeParts(QTextStream &t)
     t << "SOURCES       = " << valList(escapeFilePaths(project->values("SOURCES"))) << " "
       << valList(escapeFilePaths(project->values("GENERATED_SOURCES"))) << endl;
     if(do_incremental) {
-        QStringList &objs = project->values("OBJECTS"), &incrs = project->values("QMAKE_INCREMENTAL"), incrs_out;
+        const QStringList &objs = project->values("OBJECTS"), &incrs = project->values("QMAKE_INCREMENTAL");
+        QStringList incrs_out;
         t << "OBJECTS       = ";
-        for(QStringList::Iterator objit = objs.begin(); objit != objs.end(); ++objit) {
+        for(QStringList::ConstIterator objit = objs.constBegin(); objit != objs.constEnd(); ++objit) {
             bool increment = false;
-            for(QStringList::Iterator incrit = incrs.begin(); incrit != incrs.end(); ++incrit) {
+            for(QStringList::ConstIterator incrit = incrs.constBegin(); incrit != incrs.constEnd(); ++incrit) {
                 if((*objit).indexOf(QRegExp((*incrit), Qt::CaseSensitive,
                                     QRegExp::Wildcard)) != -1) {
                     increment = true;
@@ -271,23 +272,24 @@ UnixMakefileGenerator::writeMakeParts(QTextStream &t)
     t << endl;
 
     // blasted includes
-    QStringList &qeui = project->values("QMAKE_EXTRA_INCLUDES");
-    QStringList::Iterator it;
-    for(it = qeui.begin(); it != qeui.end(); ++it)
-        t << "include " << (*it) << endl;
+    {
+        const QStringList &qeui = project->values("QMAKE_EXTRA_INCLUDES");
+        for(QStringList::ConstIterator it = qeui.constBegin(); it != qeui.constEnd(); ++it)
+            t << "include " << (*it) << endl;
+    }
 
     /* rules */
     t << "first: all" << endl;
     t << "####### Implicit rules" << endl << endl;
     t << ".SUFFIXES: " << Option::obj_ext;
-    for(QStringList::Iterator cit = Option::c_ext.begin(); cit != Option::c_ext.end(); ++cit)
+    for(QStringList::ConstIterator cit = Option::c_ext.constBegin(); cit != Option::c_ext.constEnd(); ++cit)
         t << " " << (*cit);
-    for(QStringList::Iterator cppit = Option::cpp_ext.begin(); cppit != Option::cpp_ext.end(); ++cppit)
+    for(QStringList::ConstIterator cppit = Option::cpp_ext.constBegin(); cppit != Option::cpp_ext.constEnd(); ++cppit)
         t << " " << (*cppit);
     t << endl << endl;
-    for(QStringList::Iterator cppit = Option::cpp_ext.begin(); cppit != Option::cpp_ext.end(); ++cppit)
+    for(QStringList::ConstIterator cppit = Option::cpp_ext.constBegin(); cppit != Option::cpp_ext.constEnd(); ++cppit)
         t << (*cppit) << Option::obj_ext << ":\n\t" << var("QMAKE_RUN_CXX_IMP") << endl << endl;
-    for(QStringList::Iterator cit = Option::c_ext.begin(); cit != Option::c_ext.end(); ++cit)
+    for(QStringList::ConstIterator cit = Option::c_ext.constBegin(); cit != Option::c_ext.constEnd(); ++cit)
         t << (*cit) << Option::obj_ext << ":\n\t" << var("QMAKE_RUN_CC_IMP") << endl << endl;
 
     if(include_deps) {
@@ -301,27 +303,27 @@ UnixMakefileGenerator::writeMakeParts(QTextStream &t)
             odir = project->first("OBJECTS_DIR");
         
         t << "###### Dependencies" << endl << endl;
-        for(QStringList::Iterator cit = Option::c_ext.begin(); cit != Option::c_ext.end(); ++cit)
+        for(QStringList::ConstIterator cit = Option::c_ext.constBegin(); cit != Option::c_ext.constEnd(); ++cit)
             generateHeaderDependencyTarget(t, odir, cmd, (*cit), "$(CC) $(CFLAGS)");
-        for(QStringList::Iterator cppit = Option::cpp_ext.begin(); cppit != Option::cpp_ext.end(); ++cppit)
+        for(QStringList::ConstIterator cppit = Option::cpp_ext.constBegin(); cppit != Option::cpp_ext.constEnd(); ++cppit)
             generateHeaderDependencyTarget(t, odir, cmd, (*cppit), "$(CXX) $(CXXFLAGS)");
         
         static const QString src[] = { "SOURCES", "GENERATED_SOURCES" };
         for(int x = 0; x < sizeof(src)/sizeof(*src) ; x++) {
-            QStringList &l = project->values(src[x]);
-            for(QStringList::Iterator it = l.begin(); it != l.end(); ++it) {
+            const QStringList &l = project->values(src[x]);
+            for(QStringList::ConstIterator it = l.constBegin(); it != l.constEnd(); ++it) {
                 if(!(*it).isEmpty()) {
                     QString d_file;
-                    for(QStringList::Iterator cit = Option::c_ext.begin();
-                        cit != Option::c_ext.end(); ++cit) {
+                    for(QStringList::ConstIterator cit = Option::c_ext.constBegin();
+                        cit != Option::c_ext.constEnd(); ++cit) {
                         if((*it).endsWith((*cit))) {
                             d_file = (*it);
                             break;
                         }
                     }
                     if(d_file.isEmpty()) {
-                        for(QStringList::Iterator cppit = Option::cpp_ext.begin();
-                            cppit != Option::cpp_ext.end(); ++cppit) {
+                        for(QStringList::ConstIterator cppit = Option::cpp_ext.constBegin();
+                            cppit != Option::cpp_ext.constEnd(); ++cppit) {
                             if((*it).endsWith((*cppit))) {
                                 d_file = (*it);
                                 break;
@@ -354,9 +356,8 @@ UnixMakefileGenerator::writeMakeParts(QTextStream &t)
         t << endl << endl;
     }
     if(project->isActiveConfig("depend_prl") && !project->isEmpty("QMAKE_PRL_INTERNAL_FILES")) {
-        QStringList &l = project->values("QMAKE_PRL_INTERNAL_FILES");
-        QStringList::Iterator it;
-        for(it = l.begin(); it != l.end(); ++it) {
+        const QStringList &l = project->values("QMAKE_PRL_INTERNAL_FILES");
+        for(QStringList::ConstIterator it = l.constBegin(); it != l.constEnd(); ++it) {
             QMakeMetaInfo libinfo;
             if(libinfo.readLib((*it)) && !libinfo.isEmpty("QMAKE_PRL_BUILD_DIR")) {
                 QString dir;
@@ -645,10 +646,10 @@ UnixMakefileGenerator::writeMakeParts(QTextStream &t)
             QStringList objs = project->values("OBJECTS") + project->values("OBJCOMP"),
                         libs = project->values("QMAKE_AR_SUBLIBS");
             libs.prepend("$(TARGET)");
-            for(QStringList::Iterator libit = libs.begin(), objit = objs.begin();
-                libit != libs.end(); ++libit) {
+            for(QStringList::ConstIterator libit = libs.constBegin(), objit = objs.constBegin();
+                libit != libs.constEnd(); ++libit) {
                 QStringList build;
-                for(int cnt = 0; cnt < max_files && objit != objs.end(); ++objit, cnt++)
+                for(int cnt = 0; cnt < max_files && objit != objs.constEnd(); ++objit, cnt++)
                     build << (*objit);
                 QString ar;
                 if((*libit) == "$(TARGET)") {
@@ -901,8 +902,8 @@ UnixMakefileGenerator::writeMakeParts(QTextStream &t)
         QString libdir = "tmp/";
         if(!project->isEmpty("SUBLIBS_DIR"))
             libdir = project->first("SUBLIBS_DIR");
-        QStringList &l = project->values("SUBLIBS");
-        for(it = l.begin(); it != l.end(); ++it)
+        const QStringList &l = project->values("SUBLIBS");
+        for(QStringList::ConstIterator it = l.constBegin(); it != l.constEnd(); ++it)
             t << libdir << project->first("QMAKE_PREFIX_STATICLIB") << (*it) << "."
               << project->first("QMAKE_EXTENSION_STATICLIB") << ":\n\t"
               << var(QString("MAKELIB") + (*it)) << endl << endl;
