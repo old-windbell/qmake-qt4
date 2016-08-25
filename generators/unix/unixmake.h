@@ -74,6 +74,8 @@ protected:
 
 private:
     void init2();
+    void generateHeaderDependencyTarget(QTextStream &, const QString &,
+        const QString &, const QString &, const QString &);
 };
 
 inline UnixMakefileGenerator::~UnixMakefileGenerator()

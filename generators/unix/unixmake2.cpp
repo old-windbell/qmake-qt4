@@ -52,7 +52,7 @@
 
 QT_BEGIN_NAMESPACE
 
-UnixMakefileGenerator::UnixMakefileGenerator() : MakefileGenerator(), init_flag(false), include_deps(false)
+UnixMakefileGenerator::UnixMakefileGenerator() : MakefileGenerator(), init_flag(false), include_deps(true)
 {
 
 }
@@ -107,6 +107,16 @@ UnixMakefileGenerator::writeMakefile(QTextStream &t)
         return true;
     }
     return false;
+}
+
+void UnixMakefileGenerator::generateHeaderDependencyTarget(
+    QTextStream &t, const QString &odir, const QString &cmd,
+    const QString &ext, const QString &compiler) {
+    t << odir << ".deps/%" << ext << ".d: %" << ext << "\n\t";
+    if(project->isActiveConfig("echo_depend_creation"))
+        t << "@echo Creating depend for $<" << "\n\t";
+    t << mkdir_p_asstring("$(@D)") << "\n\t"
+      << "@" << compiler << " " << cmd << " $< | sed \"s,^\\($(*F).o\\):," << odir << "\\1:,g\" >$@" << endl << endl;
 }
 
 void
@@ -289,19 +299,13 @@ UnixMakefileGenerator::writeMakeParts(QTextStream &t)
         QString odir;
         if(!project->values("OBJECTS_DIR").isEmpty())
             odir = project->first("OBJECTS_DIR");
+        
         t << "###### Dependencies" << endl << endl;
-        t << odir << ".deps/%.d: %.cpp\n\t";
-        if(project->isActiveConfig("echo_depend_creation"))
-            t << "@echo Creating depend for $<" << "\n\t";
-        t << mkdir_p_asstring("$(@D)") << "\n\t"
-          << "@$(CXX) " << cmd << " $< | sed \"s,^\\($(*F).o\\):," << odir << "\\1:,g\" >$@" << endl << endl;
-
-        t << odir << ".deps/%.d: %.c\n\t";
-        if(project->isActiveConfig("echo_depend_creation"))
-            t << "@echo Creating depend for $<" << "\n\t";
-        t << mkdir_p_asstring("$(@D)") << "\n\t"
-          << "@$(CC) " << cmd << " $< | sed \"s,^\\($(*F).o\\):," << odir << "\\1:,g\" >$@" << endl << endl;
-
+        for(QStringList::Iterator cit = Option::c_ext.begin(); cit != Option::c_ext.end(); ++cit)
+            generateHeaderDependencyTarget(t, odir, cmd, (*cit), "$(CC) $(CFLAGS)");
+        for(QStringList::Iterator cppit = Option::cpp_ext.begin(); cppit != Option::cpp_ext.end(); ++cppit)
+            generateHeaderDependencyTarget(t, odir, cmd, (*cppit), "$(CXX) $(CXXFLAGS)");
+        
         QString src[] = { "SOURCES", "GENERATED_SOURCES", QString() };
         for(int x = 0; !src[x].isNull(); x++) {
             QStringList &l = project->values(src[x]);
