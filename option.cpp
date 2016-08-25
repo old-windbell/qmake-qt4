@@ -151,6 +151,9 @@ bool usage(const char *a0)
 {
     fprintf(stdout, "Usage: %s [mode] [options] [files]\n"
             "\n"
+            "WARNING : THIS VERSION OF QMAKE IS NOT SUPPORTED BY QT\n"
+            "Please report any bugs to : https://github.com/xavery/qmake-qt4\n"
+            "\n"
             "QMake has two modes, one mode for generating project files based on\n"
             "some heuristics, and the other for generating makefiles. Normally you\n"
             "shouldn't need to specify a mode, as makefile generation is the default\n"
