@@ -315,7 +315,7 @@ UnixMakefileGenerator::writeMakeParts(QTextStream &t)
                     for(QStringList::Iterator cit = Option::c_ext.begin();
                         cit != Option::c_ext.end(); ++cit) {
                         if((*it).endsWith((*cit))) {
-                            d_file = (*it).left((*it).length() - (*cit).length());
+                            d_file = (*it);
                             break;
                         }
                     }
@@ -323,7 +323,7 @@ UnixMakefileGenerator::writeMakeParts(QTextStream &t)
                         for(QStringList::Iterator cppit = Option::cpp_ext.begin();
                             cppit != Option::cpp_ext.end(); ++cppit) {
                             if((*it).endsWith((*cppit))) {
-                                d_file = (*it).left((*it).length() - (*cppit).length());
+                                d_file = (*it);
                                 break;
                             }
                         }
