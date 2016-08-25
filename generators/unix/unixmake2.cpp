@@ -306,8 +306,8 @@ UnixMakefileGenerator::writeMakeParts(QTextStream &t)
         for(QStringList::Iterator cppit = Option::cpp_ext.begin(); cppit != Option::cpp_ext.end(); ++cppit)
             generateHeaderDependencyTarget(t, odir, cmd, (*cppit), "$(CXX) $(CXXFLAGS)");
         
-        QString src[] = { "SOURCES", "GENERATED_SOURCES", QString() };
-        for(int x = 0; !src[x].isNull(); x++) {
+        static const QString src[] = { "SOURCES", "GENERATED_SOURCES" };
+        for(int x = 0; x < sizeof(src)/sizeof(*src) ; x++) {
             QStringList &l = project->values(src[x]);
             for(QStringList::Iterator it = l.begin(); it != l.end(); ++it) {
                 if(!(*it).isEmpty()) {
