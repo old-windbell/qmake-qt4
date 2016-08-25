@@ -109,14 +109,50 @@ UnixMakefileGenerator::writeMakefile(QTextStream &t)
     return false;
 }
 
-void UnixMakefileGenerator::generateHeaderDependencyTarget(
-    QTextStream &t, const QString &odir, const QString &cmd,
-    const QString &ext, const QString &compiler) {
-    t << odir << ".deps/%" << ext << ".d: %" << ext << "\n\t";
-    if(project->isActiveConfig("echo_depend_creation"))
-        t << "@echo Creating depend for $<" << "\n\t";
-    t << mkdir_p_asstring("$(@D)") << "\n\t"
-      << "@" << compiler << " " << cmd << " $< | sed \"s,^\\($(*F).o\\):," << odir << "\\1:,g\" >$@" << endl << endl;
+void UnixMakefileGenerator::writeDependTarget(QTextStream &t,
+    const QStringList &srcs, const QString &compiler, const QString &cmd,
+    const QString &odir, const QString &targetName)
+{
+    if(srcs.empty())
+        return;
+    
+    t << targetName << ':';
+    for(int i = 0 ; i < srcs.size() ; ++i) {
+        t << ' ' << escapeFilePath(srcs[i]);
+        if(i != srcs.size() - 1) {
+            t << " \\";
+        }
+        t << '\n';
+    }
+    
+    t << "\t@" << compiler << " -MM " << cmd << "$^ 2>/dev/null | sed \"s,^\\($(*F).o\\):," << odir << "\\1:,g\" >$@\n";
+    t << "-include " << targetName << "\n\n";
+    project->values("QMAKE_DISTCLEAN") += targetName;
+}
+
+static void getLanguageSourceLists(QMakeProject *project, QStringList& cSources, QStringList& cppSources) {
+    static const QString src[] = { "SOURCES", "GENERATED_SOURCES" };
+    for(int x = 0; x < sizeof(src)/sizeof(*src) ; x++) {
+        const QStringList &l = project->values(src[x]);
+        for(QStringList::ConstIterator it = l.constBegin(); it != l.constEnd(); ++it) {
+            if(!(*it).isEmpty()) {
+                for(QStringList::ConstIterator cit = Option::c_ext.constBegin();
+                    cit != Option::c_ext.constEnd(); ++cit) {
+                    if((*it).endsWith((*cit))) {
+                        cSources << (*it);
+                        break;
+                    }
+                }
+                for(QStringList::ConstIterator cppit = Option::cpp_ext.constBegin();
+                    cppit != Option::cpp_ext.constEnd(); ++cppit) {
+                    if((*it).endsWith((*cppit))) {
+                        cppSources << (*it);
+                        break;
+                    }
+                }
+            }
+        }
+    }
 }
 
 void
@@ -293,7 +329,9 @@ UnixMakefileGenerator::writeMakeParts(QTextStream &t)
         t << (*cit) << Option::obj_ext << ":\n\t" << var("QMAKE_RUN_CC_IMP") << endl << endl;
 
     if(include_deps) {
-        QString cmd=var("QMAKE_CFLAGS_DEPS") + " ";
+        QString cmd;
+        QStringList cSources;
+        QStringList cppSources;
         cmd += varGlue("DEFINES","-D"," -D","") + varGlue("PRL_EXPORT_DEFINES"," -D"," -D","");
         if(!project->isEmpty("QMAKE_ABSOLUTE_SOURCE_PATH"))
             cmd += " -I" + project->first("QMAKE_ABSOLUTE_SOURCE_PATH") + " ";
@@ -303,44 +341,10 @@ UnixMakefileGenerator::writeMakeParts(QTextStream &t)
             odir = project->first("OBJECTS_DIR");
         
         t << "###### Dependencies" << endl << endl;
-        for(QStringList::ConstIterator cit = Option::c_ext.constBegin(); cit != Option::c_ext.constEnd(); ++cit)
-            generateHeaderDependencyTarget(t, odir, cmd, (*cit), "$(CC) $(CFLAGS)");
-        for(QStringList::ConstIterator cppit = Option::cpp_ext.constBegin(); cppit != Option::cpp_ext.constEnd(); ++cppit)
-            generateHeaderDependencyTarget(t, odir, cmd, (*cppit), "$(CXX) $(CXXFLAGS)");
         
-        static const QString src[] = { "SOURCES", "GENERATED_SOURCES" };
-        for(int x = 0; x < sizeof(src)/sizeof(*src) ; x++) {
-            const QStringList &l = project->values(src[x]);
-            for(QStringList::ConstIterator it = l.constBegin(); it != l.constEnd(); ++it) {
-                if(!(*it).isEmpty()) {
-                    QString d_file;
-                    for(QStringList::ConstIterator cit = Option::c_ext.constBegin();
-                        cit != Option::c_ext.constEnd(); ++cit) {
-                        if((*it).endsWith((*cit))) {
-                            d_file = (*it);
-                            break;
-                        }
-                    }
-                    if(d_file.isEmpty()) {
-                        for(QStringList::ConstIterator cppit = Option::cpp_ext.constBegin();
-                            cppit != Option::cpp_ext.constEnd(); ++cppit) {
-                            if((*it).endsWith((*cppit))) {
-                                d_file = (*it);
-                                break;
-                            }
-                        }
-                    }
-                    if(!d_file.isEmpty()) {
-                        d_file = odir + ".deps/" + d_file + ".d";
-                        QStringList deps = findDependencies((*it)).filter(QRegExp(Option::cpp_moc_ext + "$"));
-                        if(!deps.isEmpty())
-                            t << d_file << ": " << deps.join(" ") << endl;
-                        t << "-include " << d_file << endl;
-                        project->values("QMAKE_DISTCLEAN") += d_file;
-                    }
-                }
-            }
-        }
+        getLanguageSourceLists(project, cSources, cppSources);
+        writeDependTarget(t, cSources, "$(CC) $(CFLAGS)", cmd, odir, "depend_c");
+        writeDependTarget(t, cppSources, "$(CXX) $(CXXFLAGS)", cmd, odir, "depend_cxx");
     }
 
     t << "####### Build rules" << endl << endl;
